@@ -178,8 +178,8 @@ Bug-Kali: https://bugs.kali.org/view.php?id=680
 +case "${LB_BUILD_WITH_CHROOT}" in
 +	true)
 +		_CHROOT_DIR=""
-+		#_SYSLINUX_EFI_DIR="chroot/usr/lib/syslinux/$_EFI_TYPE"
 +		_SYSLINUX_EFI_DIR="chroot/usr/lib/SYSLINUX.EFI/$_EFI_TYPE"
++		_SYSLINUX_MODULE_DIR="chroot/usr/lib/syslinux/modules/$_EFI_TYPE"
 +
 +		Check_package chroot/usr/bin/syslinux syslinux
 +		Check_package chroot/usr/lib/syslinux syslinux-common
@@ -190,8 +190,8 @@ Bug-Kali: https://bugs.kali.org/view.php?id=680
 +
 +	false)
 +		_CHROOT_DIR="chroot"
-+		#_SYSLINUX_EFI_DIR="/usr/lib/syslinux/$_EFI_TYPE"
 +		_SYSLINUX_EFI_DIR="/usr/lib/syslinux/$_EFI_TYPE"
++		_SYSLINUX_MODULE_DIR="/usr/lib/syslinux/modules/$_EFI_TYPE"
 +
 +		if [ ! -e /usr/bin/syslinux ]
 +		then
@@ -250,7 +250,7 @@ Bug-Kali: https://bugs.kali.org/view.php?id=680
 +# Copy syslinux and its config files in the temporary EFI image
 +mkdir -p chroot/efi-temp/live
 +mkdir -p chroot/efi-temp/EFI/BOOT
-+for _F in $_CONFDIR/*.cfg $_CONFDIR/*.png $_SYSLINUX_EFI_DIR/*.*32 $_SYSLINUX_EFI_DIR/*.*64; do
++for _F in $_CONFDIR/*.cfg $_CONFDIR/*.png $_SYSLINUX_MODULE_DIR/*.*32 $_SYSLINUX_MODULE_DIR/*.*64; do
 +	if [ -e $_F ]; then
 +		cp $_F chroot/efi-temp/EFI/BOOT/
 +	fi

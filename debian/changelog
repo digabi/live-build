@@ -1,3 +1,9 @@
+live-build (4.0~alpha39-3) unstable; urgency=medium
+
+  * Fixed paths to syslinux EFI modules.
+
+ -- Ville Korhonen <ville@xd.fi>  Thu, 07 Aug 2014 21:55:29 +0300
+
 live-build (4.0~alpha39-2) unstable; urgency=medium
 
   * Added EFI support with patch from Kali Linux live-build repository.
