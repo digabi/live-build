@@ -1,0 +1,338 @@
+Description: Add support for EFI boot
+ Note that this patch relies on syslinux 6 packaged sanely (i.e.
+ respecting upstream file locations), such a package only exists in
+ Kali for now... the experimental package in Debian places files
+ in new directories (see #742836).
+Author: Raphaël Hertzog <buxy@kali.org>
+Bug-Debian: http://bugs.debian.org/731709
+Bug-Kali: https://bugs.kali.org/view.php?id=680
+
+--- a/scripts/build/binary
++++ b/scripts/build/binary
+@@ -69,6 +69,9 @@
+ lb binary_win32-loader ${@}
+ lb binary-includes ${@}
+ lb binary-hooks ${@}
++lb binary_efi ${@} # After includes/hooks because it copies in efi.img
++		   # files that can be overriden by binary_includes and
++		   # modified by binary_hooks
+ lb binary_checksums ${@}
+ 
+ if [ "${LB_BUILD_WITH_CHROOT}" != "true" ]
+--- a/scripts/build/binary_iso
++++ b/scripts/build/binary_iso
+@@ -82,6 +82,23 @@
+ # Handle xorriso generic options
+ XORRISO_OPTIONS="-R -r -J -joliet-long -l -cache-inodes"
+ 
++case "${LB_BUILD_WITH_CHROOT}" in
++	true)
++		XORRISO_VER=$(Chroot chroot xorriso --version 2>&1 | awk '
++		    /^xorriso version/ {
++			 split($4, ver, ".")
++			 print ver[1]*10000+ver[2]*100+ver[3]
++		    }')
++		;;
++	false)
++		XORRISO_VER=$(xorriso --version 2>&1 | awk '
++		    /^xorriso version/ {
++			 split($4, ver, ".")
++			 print ver[1]*10000+ver[2]*100+ver[3]
++		    }')
++		;;
++esac
++
+ # Handle xorriso live-build specific options
+ if [ "${LIVE_IMAGE_TYPE}" = "iso-hybrid" ]
+ then
+@@ -155,6 +172,26 @@
+ 		;;
+ esac
+ 
++if [ -e binary/boot/efi.img ]; then
++	#if [ "$XORRISO_VER" -le 10202 ]; then
++		# 1.2.2 shipping in wheezy
++		Echo "Using older EFI command line for xorriso $XORRISO_VER"
++		# Tell xorriso to create a secondary ElTorito boot record for the
++		# EFI bootloader
++		XORRISO_OPTIONS="${XORRISO_OPTIONS} -eltorito-alt-boot --efi-boot boot/efi.img"
++		# Add the efi image as a FAT partition too, so our CD image will
++		# also boot on a USB key (like isohybrid, just implemented
++		# differently)
++		XORRISO_OPTIONS="${XORRISO_OPTIONS} -append_partition 2 0x01 binary/boot/efi.img"
++	#else
++	#	Echo "Using newer EFI support in xorriso $XORRISO_VER"
++	#	XORRISO_OPTIONS="${XORRISO_OPTIONS} -eltorito-alt-boot -e boot/efi.img -no-emul-boot"
++	#	XORRISO_OPTIONS="${XORRISO_OPTIONS} -isohybrid-gpt-basdat"
++	#fi
++else
++	Echo "No EFI boot code to include in the ISO"
++fi
++
+ #if [ "${LB_DEBIAN_INSTALLER}" != "live" ]
+ #then
+ #	XORRISO_OPTIONS="${XORRISO_OPTIONS} -m ${XORRISO_EXCLUDE}"
+--- /dev/null
++++ b/scripts/build/binary_efi
+@@ -0,0 +1,261 @@
++#!/bin/sh
++
++## live-build(7) - System Build Scripts
++## Copyright (C) 2014 Raphaël Hertzog <buxy@kali.org>
++## Copyright (C) 2014 Ville Korhonen <ville@xd.fi>
++##
++## This program comes with ABSOLUTELY NO WARRANTY; for details see COPYING.
++## This is free software, and you are welcome to redistribute it
++## under certain conditions; see COPYING for details.
++
++
++set -e
++
++# Including common functions
++[ -e "${LIVE_BUILD}/scripts/build.sh" ] && . "${LIVE_BUILD}/scripts/build.sh" || . /usr/lib/live/build.sh
++
++# Setting static variables
++DESCRIPTION="$(Echo 'prepares and installs EFI support into binary')"
++HELP=""
++USAGE="${PROGRAM} [--force]"
++
++Arguments "${@}"
++
++# Reading configuration files
++Read_conffiles config/all config/common config/bootstrap config/chroot config/binary config/source
++Set_defaults
++
++if [ "${LB_BOOTLOADER}" != "syslinux" ]
++then
++	exit 0
++fi
++
++Echo_message "Begin preparing EFI support..."
++
++# Requiring stage file
++Require_stagefile .build/config .build/bootstrap
++
++# Checking stage file
++Check_stagefile .build/binary_efi
++
++# Checking lock file
++Check_lockfile .lock
++
++# Creating lock file
++Create_lockfile .lock
++
++# Check architecture
++Check_architectures amd64 i386
++Check_crossarchitectures
++
++case "$LB_ARCHITECTURE" in
++	amd64)
++		_EFI_TYPE=efi64
++		;;
++	i386)
++		_EFI_TYPE=efi32
++		;;
++	*)
++		echo "ERROR: can't provide EFI boot support to architecture $LB_ARCHITECTURE" >&2
++		exit 0
++		;;
++esac
++
++# Assembling image specifics
++case "${LB_BINARY_IMAGES}" in
++	iso*)
++		_BOOTLOADER="isolinux"
++
++		case "${LB_MODE}" in
++			progress-linux)
++				_CONFDIR="binary/boot"
++				;;
++
++			*)
++				_CONFDIR="binary/isolinux"
++				;;
++		esac
++		;;
++
++	netboot)
++		_BOOTLOADER="pxelinux"
++		_CONFDIR="tftpboot"
++		;;
++
++	hdd*|*)
++		_BOOTLOADER="syslinux"
++
++		case "${LB_MODE}" in
++			progress-linux)
++				_CONFDIR="binary/boot"
++				;;
++
++			*)
++				_CONFDIR="binary/syslinux"
++				;;
++		esac
++		;;
++esac
++
++# Checking depends
++case "${LB_BUILD_WITH_CHROOT}" in
++	true)
++		_CHROOT_DIR=""
++		#_SYSLINUX_EFI_DIR="chroot/usr/lib/syslinux/$_EFI_TYPE"
++		_SYSLINUX_EFI_DIR="chroot/usr/lib/SYSLINUX.EFI/$_EFI_TYPE"
++
++		Check_package chroot/usr/bin/syslinux syslinux
++		Check_package chroot/usr/lib/syslinux syslinux-common
++		Check_package chroot/usr/lib/SYSLINUX.EFI syslinux-efi
++		Check_package chroot/usr/bin/mcopy mtools
++		Check_package chroot/sbin/mkfs.msdos dosfstools
++		;;
++
++	false)
++		_CHROOT_DIR="chroot"
++		#_SYSLINUX_EFI_DIR="/usr/lib/syslinux/$_EFI_TYPE"
++		_SYSLINUX_EFI_DIR="/usr/lib/syslinux/$_EFI_TYPE"
++
++		if [ ! -e /usr/bin/syslinux ]
++		then
++			# syslinux
++			Echo_error "/usr/bin/syslinux - no such file."
++			exit 1
++		fi
++
++		if [ ! -e /usr/lib/syslinux ]
++		then
++			# syslinux-common
++			Echo_error "/usr/lib/syslinux - no such directory"
++			exit 1
++		fi
++
++		if [ ! -e /usr/bin/mcopy ]
++		then
++			# mtools
++			Echo_error "/usr/bin/mcopy - no such file."
++			exit 1
++		fi
++
++		if [ ! -e /sbin/mkfs.msdos ]
++		then
++			# dosfstools
++			Echo_error "/sbin/mkfs.msdos - no such file."
++			exit 1
++		fi
++		;;
++esac
++
++# Restoring cache
++Restore_cache cache/packages.binary
++
++# Installing depends
++Install_package
++
++# Abort if we don't have the required EFI files
++if [ ! -e $_SYSLINUX_EFI_DIR/syslinux.efi ]; then
++	Echo_warning "$_SYSLINUX_EFI_DIR/syslinux.efi missing, no EFI support included."
++	case "${LB_BUILD_WITH_CHROOT}" in
++		true)
++			# Saving cache
++			Save_cache cache/packages.binary
++
++			# Removing depends
++			Remove_package
++			;;
++	esac
++	exit 0
++fi
++
++# Cleanup files that we generate
++rm -rf chroot/efi-temp chroot/efi.img binary/boot/efi.img
++
++# Copy syslinux and its config files in the temporary EFI image
++mkdir -p chroot/efi-temp/live
++mkdir -p chroot/efi-temp/EFI/BOOT
++for _F in $_CONFDIR/*.cfg $_CONFDIR/*.png $_SYSLINUX_EFI_DIR/*.*32 $_SYSLINUX_EFI_DIR/*.*64; do
++	if [ -e $_F ]; then
++		cp $_F chroot/efi-temp/EFI/BOOT/
++	fi
++done
++cp $_SYSLINUX_EFI_DIR/syslinux.efi chroot/efi-temp/EFI/BOOT/BOOTX64.efi
++cp $_SYSLINUX_EFI_DIR/syslinux.efi chroot/efi-temp/EFI/BOOT/syslinux.efi
++
++# Copy the various kernel images
++cp binary/live/vmlinuz* binary/live/initrd.img* chroot/efi-temp/live/
++if [ -d binary/install ]; then
++	cp -r binary/install chroot/efi-temp/
++fi
++
++# Edit the menu to differentiate the EFI version
++if [ -e chroot/efi-temp/EFI/BOOT/menu.cfg ]; then
++	sed -i -e "s/^menu title/menu title EFI/" chroot/efi-temp/EFI/BOOT/menu.cfg
++else
++        Echo "No menu.cfg file that can be edited to indicate that we boot on EFI!"
++fi
++
++# Ensure we have a syslinux.cfg
++if [ ! -e chroot/efi-temp/EFI/BOOT/syslinux.cfg ]; then
++	for _F in isolinux.cfg pxelinux.cfg/default extlinux.conf; do
++		if [ -f chroot/efi-temp/EFI/BOOT/$_F ]; then
++			cp chroot/efi-temp/EFI/BOOT/$_F chroot/efi-temp/EFI/BOOT/syslinux.cfg
++			break
++		fi
++	done
++fi
++
++# Define the EFI filesystem size
++_TOTALSIZE=$(du -sk chroot/efi-temp/ | awk '{print $1}')
++# Add 5% safety margin
++_TOTALSIZE=$(( $_TOTALSIZE * 21 / 20 ))
++# Required size rounded to upper 32kb
++_BLOCKS=$(( ($_TOTALSIZE + 31) / 32 * 32 ))
++Echo "EFI boot image needs $_TOTALSIZE Kb, thus allocating $_BLOCKS blocks."
++
++# Script to generate the EFI boot image
++cat >binary.sh <<END
++#!/bin/sh
++
++set -e
++
++mkfs.msdos -C $_CHROOT_DIR/efi.img $_BLOCKS
++mcopy -s -v -i $_CHROOT_DIR/efi.img $_CHROOT_DIR/efi-temp/* ::
++END
++
++# Copying files
++case "${LB_BUILD_WITH_CHROOT}" in
++	true)
++		mv binary.sh chroot/
++		Chroot chroot "sh binary.sh"
++		rm -f chroot/binary.sh
++
++		# Saving cache
++		Save_cache cache/packages.binary
++
++		# Removing depends
++		Remove_package
++		;;
++
++	false)
++		sh binary.sh
++		rm -f binary.sh
++		;;
++esac
++
++mkdir -p binary/boot
++mv chroot/efi.img binary/boot/
++mv chroot/efi-temp/EFI binary/
++rm -rf chroot/efi-temp
++
++case "${LB_BUILD_WITH_CHROOT}" in
++        true)
++                # Saving cache
++                Save_cache cache/packages.binary
++
++                # Removing depends
++                Remove_package
++                ;;
++esac
++
++# Creating stage file
++Create_stagefile .build/binary_efi

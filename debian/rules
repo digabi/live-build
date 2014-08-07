@@ -4,6 +4,7 @@
 	dh ${@} --parallel
 
 override_dh_auto_install:
+	chmod 755 scripts/build/binary_efi
 	dh_auto_install -- DESTDIR=debian/live-build
 
 	# Removing unused files
