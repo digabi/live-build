@@ -1,10 +1,10 @@
-live-build (4.0~alpha39-3) unstable; urgency=medium
+live-build (4.0.1-3) unstable; urgency=medium
 
   * Fixed paths to syslinux EFI modules.
 
  -- Ville Korhonen <ville@xd.fi>  Thu, 07 Aug 2014 21:55:29 +0300
 
-live-build (4.0~alpha39-2) unstable; urgency=medium
+live-build (4.0.1-2) unstable; urgency=medium
 
   * Added EFI support with patch from Kali Linux live-build repository.
     Original patch by Raphaël Hertzog. Our modifications include:
@@ -13,6 +13,31 @@ live-build (4.0~alpha39-2) unstable; urgency=medium
     - copy EFI folder to binary root
 
  -- Ville Korhonen <ville@xd.fi>  Thu, 07 Aug 2014 20:58:32 +0300
+
+live-build (4.0.1-1) unstable; urgency=low
+
+  * Dropping leftover testroot call in bootstrap_cdebootstrap and
+    bootstrap_debootstrap.
+
+ -- Daniel Baumann <mail@daniel-baumann.ch>  Thu, 28 Aug 2014 23:25:52 +0200
+
+live-build (4.0.0-1) unstable; urgency=low
+
+  [ Daniel Baumann ]
+  * Correcting wrong target for /etc/mtab symlink in create-mtab-symlink
+    hook, thanks to Ben Armstrong <synrg@sanctuary.nslug.ns.ca>.
+  * Setting default distribution to jessie.
+
+  [ Ben Armstrong ]
+  * Exclude lib and non-main sections as tasksel does (Closes: #758218).
+
+  [ Daniel Baumann ]
+  * Moving partial python rewrite to separate branch, let's do it in the
+    jessie+1 cycle rather than go with the current mixed code.
+  * Restoring old manpages since we're back to the non-python
+    implementation (Closes: #745134).
+
+ -- Daniel Baumann <mail@daniel-baumann.ch>  Thu, 28 Aug 2014 00:59:45 +0200
 
 live-build (4.0~alpha39-1) unstable; urgency=low
 
