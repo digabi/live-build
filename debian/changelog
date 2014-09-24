@@ -1,18 +1,21 @@
-live-build (4.0.1-3) unstable; urgency=medium
+live-build (4.0.2-1) unstable; urgency=low
 
-  * Fixed paths to syslinux EFI modules.
+  [ Daniel Baumann ]
+  * Creating live.list.chroot with live packages in config.
 
- -- Ville Korhonen <ville@xd.fi>  Thu, 07 Aug 2014 21:55:29 +0300
+  [ victory ]
+  * Fix typos in lb_config.1.
+  * Add Japanese translations.
 
-live-build (4.0.1-2) unstable; urgency=medium
+  [ Daniel Baumann ]
+  * Making populating of live.chroot.list distribution specific.
+  * Making check target in manpages makefile comply with the rest.
+  * Dropping incomplete German manpage translations.
+  * Dropping syslinux 6 symlinks from bootloader configs for wheezy.
+  * Removing source_includes from toplevel source script, it was a python
+    stub and will come back at a later point.
 
-  * Added EFI support with patch from Kali Linux live-build repository.
-    Original patch by Raphaël Hertzog. Our modifications include:
-    - added Check_package syslinux-efi
-    - fixed paths for syslinux-efi
-    - copy EFI folder to binary root
-
- -- Ville Korhonen <ville@xd.fi>  Thu, 07 Aug 2014 20:58:32 +0300
+ -- Daniel Baumann <mail@daniel-baumann.ch>  Fri, 12 Sep 2014 13:42:37 +0200
 
 live-build (4.0.1-1) unstable; urgency=low
 
