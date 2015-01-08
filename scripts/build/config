@@ -32,7 +32,7 @@ USAGE="${PROGRAM}   [--apt apt|aptitude]\n\
 \t    [--bootappend-install PARAMETER|\"PARAMETERS\"]\n\
 \t    [--bootappend-live PARAMETER|\"PARAMETERS\"]\n\
 \t    [--bootappend-live-failsafe PARAMETER|\"PARAMETERS\"]\n\
-\t    [--bootloader grub|syslinux]\n\
+\t    [--bootloader grub|grub2|syslinux]\n\
 \t    [--bootstrap cdebootstrap|cdebootstrap-static|debootstrap]\n\
 \t    [--cache true|false]\n\
 \t    [--cache-indices true|false]\n\
@@ -64,7 +64,7 @@ USAGE="${PROGRAM}   [--apt apt|aptitude]\n\
 \t    [--ignore-system-defaults]\n\
 \t    [--initramfs auto|none|live-boot|casper]\n\
 \t    [--initramfs-compression bzip2|gzip|lzma]\n\
-\t    [--initsystem sysvinit|runit|systemd|upstart|none]\n\
+\t    [--initsystem sysvinit|systemd|upstart|none]\n\
 \t    [--image-name [NAME]\n\
 \t    [--interactive shell]\n\
 \t    [--isohybrid-options OPTION|\"OPTIONS\"]\n\
@@ -347,7 +347,7 @@ Local_arguments ()
 
 			# config/bootstrap
 			-a|--architectures)
-				LIVE_IMAGE_ARCHITECTURE="${2}"
+				LB_ARCHITECTURES="${2}"
 				shift 2
 				;;
 
@@ -422,7 +422,7 @@ Local_arguments ()
 				;;
 
 			--archive-areas)
-				LIVE_IMAGE_ARCHIVE_AREAS="${2}"
+				LB_ARCHIVE_AREAS="${2}"
 				shift 2
 				;;
 
@@ -883,10 +883,10 @@ Check_defaults
 
 if [ ! -e config ]
 then
-	Echo_message "Creating config tree for a ${LB_MODE}/${LB_DISTRIBUTION}/${LIVE_IMAGE_ARCHITECTURE} system"
+	Echo_message "Creating config tree for a ${LB_MODE}/${LB_DISTRIBUTION}/${LB_ARCHITECTURES} system"
 	mkdir config
 else
-	Echo_message "Updating config tree for a ${LB_MODE}/${LB_DISTRIBUTION}/${LIVE_IMAGE_ARCHITECTURE} system"
+	Echo_message "Updating config tree for a ${LB_MODE}/${LB_DISTRIBUTION}/${LB_ARCHITECTURES} system"
 fi
 
 # Creating live-build configuration
@@ -1353,28 +1353,52 @@ done
 
 if [ ! -e config/package-lists/live.list.chroot ]
 then
+	mkdir -p config/package-lists
 
-cat > config/package-lists/live.list.chroot << EOF
-live-boot
-live-config
-EOF
+	case "${LB_INITRAMFS}" in
+		live-boot)
+			echo "live-boot" > config/package-lists/live.list.chroot
+			echo "live-config" >> config/package-lists/live.list.chroot
 
-case "${LB_PARENT_DISTRIBUTION}" in
-	wheezy)
-		echo "live-config-sysvinit" >> config/package-lists/live.list.chroot
-		;;
+			case "${LB_PARENT_DISTRIBUTION}" in
+				wheezy)
+					echo "live-config-sysvinit" >> config/package-lists/live.list.chroot
+					;;
 
-	*)
-		echo "live-config-systemd" >> config/package-lists/live.list.chroot
-		;;
+				*)
+					case "${LB_INITSYSTEM}" in
+						none)
+							# do nothing
+							;;
+
+						systemd)
+							echo "live-config-systemd" >> config/package-lists/live.list.chroot
+							echo "dbus" >> config/package-lists/live.list.chroot
+							;;
+
+						sysvinit|upstart)
+							echo "live-config-${LB_INITSYSTEM}" >> config/package-lists/live.list.chroot
+							echo "sysvinit-core" >> config/package-lists/live.list.chroot
+							;;
+					esac
+					;;
+			esac
+			;;
+
+		casper)
+			echo "casper" > config/package-lists/live.list.chroot
+			;;
+
+		*)
+			;;
 esac
 
 fi
 
 cat > config/build << EOF
 [Image]
-Architecture: ${LIVE_IMAGE_ARCHITECTURE}
-Archive-Areas: ${LIVE_IMAGE_ARCHIVE_AREAS}
+Architecture: ${LB_ARCHITECTURES}
+Archive-Areas: ${LB_ARCHIVE_AREAS}
 Distribution: ${LB_DISTRIBUTION}
 Mirror-Bootstrap: ${LB_MIRROR_BOOTSTRAP}
 EOF
@@ -1384,7 +1408,7 @@ then
 
 cat >> config/build << EOF
 
-Parent-Archive-Areas: ${LIVE_IMAGE_ARCHIVE_AREAS}
+Parent-Archive-Areas: ${LB_ARCHIVE_AREAS}
 Parent-Distribution: ${LB_PARENT_DISTRIBUTION}
 Parent-Mirror-Bootstrap: ${LB_PARENT_MIRROR_BOOTSTRAP}
 EOF

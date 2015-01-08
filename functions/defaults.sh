@@ -46,32 +46,32 @@ New_configuration ()
 	export LIVE_IMAGE_NAME
 
 	# Image: Architecture (FIXME: Support and default to 'any')
-	LIVE_IMAGE_ARCHITECTURE="${LIVE_IMAGE_ARCHITECTURE:-$(Get_configuration config/build Architecture)}"
-	LIVE_IMAGE_ARCHITECTURE="${LIVE_IMAGE_ARCHITECTURE:-${CURRENT_IMAGE_ARCHITECTURE}}"
-	export LIVE_IMAGE_ARCHITECTURE
+	LB_ARCHITECTURES="${LB_ARCHITECTURES:-$(Get_configuration config/build Architecture)}"
+	LB_ARCHITECTURES="${LB_ARCHITECTURES:-${CURRENT_IMAGE_ARCHITECTURE}}"
+	export LB_ARCHITECTURES
 
 	# Image: Archive Areas
-	LIVE_IMAGE_ARCHIVE_AREAS="${LIVE_IMAGE_ARCHIVE_AREAS:-$(Get_configuration config/build Archive-Areas)}"
+	LB_ARCHIVE_AREAS="${LB_ARCHIVE_AREAS:-$(Get_configuration config/build Archive-Areas)}"
 
 	case "${LB_MODE}" in
 		progress-linux)
-			LIVE_IMAGE_ARCHIVE_AREAS="${LIVE_IMAGE_ARCHIVE_AREAS:-main contrib non-free}"
+			LB_ARCHIVE_AREAS="${LB_ARCHIVE_AREAS:-main contrib non-free}"
 			;;
 
 		ubuntu)
-			LIVE_IMAGE_ARCHIVE_AREAS="${LIVE_IMAGE_ARCHIVE_AREAS:-main restricted}"
+			LB_ARCHIVE_AREAS="${LB_ARCHIVE_AREAS:-main restricted}"
 			;;
 
 		*)
-			LIVE_IMAGE_ARCHIVE_AREAS="${LIVE_IMAGE_ARCHIVE_AREAS:-main}"
+			LB_ARCHIVE_AREAS="${LB_ARCHIVE_AREAS:-main}"
 			;;
 	esac
 
-	export LIVE_IMAGE_ARCHIVE_AREAS
+	export LB_ARCHIVE_AREAS
 
 	# Image: Archive Areas
 	LIVE_IMAGE_PARENT_ARCHIVE_AREAS="${LIVE_IMAGE_PARENT_ARCHIVE_AREAS:-$(Get_configuration config/build Parent-Archive-Areas)}"
-	LIVE_IMAGE_PARENT_ARCHIVE_AREAS="${LIVE_IMAGE_PARENT_ARCHIVE_AREAS:-${LIVE_IMAGE_ARCHIVE_AREAS}}"
+	LIVE_IMAGE_PARENT_ARCHIVE_AREAS="${LIVE_IMAGE_PARENT_ARCHIVE_AREAS:-${LB_ARCHIVE_AREAS}}"
 	export LIVE_IMAGE_PARENT_ARCHIVE_AREAS
 
 	# Image: Type
@@ -288,7 +288,15 @@ Set_defaults ()
 		*)
 			case "${LB_SYSTEM}" in
 				live)
-					LB_INITSYSTEM="${LB_INITSYSTEM:-sysvinit}"
+					case "${LB_PARENT_DISTRIBUTION}" in
+						wheezy)
+							LB_INITSYSTEM="${LB_INITSYSTEM:-sysvinit}"
+							;;
+
+						*)
+							LB_INITSYSTEM="${LB_INITSYSTEM:-systemd}"
+							;;
+					esac
 					;;
 
 				normal)
@@ -330,7 +338,7 @@ Set_defaults ()
 		fi
 	fi
 
-	if [ "${LIVE_IMAGE_ARCHITECTURE}" = "i386" ] && [ "${CURRENT_IMAGE_ARCHITECTURE}" = "amd64" ]
+	if [ "${LB_ARCHITECTURES}" = "i386" ] && [ "${CURRENT_IMAGE_ARCHITECTURE}" = "amd64" ]
 	then
 		# Use linux32 when building amd64 images on i386
 		_LINUX32="linux32"
@@ -383,7 +391,7 @@ Set_defaults ()
 			;;
 
 		ubuntu)
-			case "${LIVE_IMAGE_ARCHITECTURE}" in
+			case "${LB_ARCHITECTURES}" in
 				amd64|i386)
 					LB_MIRROR_BOOTSTRAP="${LB_MIRROR_BOOTSTRAP:-http://archive.ubuntu.com/ubuntu/}"
 					;;
@@ -413,7 +421,7 @@ Set_defaults ()
 			;;
 
 		ubuntu)
-			case "${LIVE_IMAGE_ARCHITECTURE}" in
+			case "${LB_ARCHITECTURES}" in
 				amd64|i386)
 					LB_MIRROR_CHROOT_SECURITY="${LB_MIRROR_CHROOT_SECURITY:-http://security.ubuntu.com/ubuntu/}"
 					;;
@@ -440,7 +448,7 @@ Set_defaults ()
 			;;
 
 		ubuntu)
-			case "${LIVE_IMAGE_ARCHITECTURE}" in
+			case "${LB_ARCHITECTURES}" in
 				amd64|i386)
 					LB_MIRROR_BINARY="${LB_MIRROR_BINARY:-http://archive.ubuntu.com/ubuntu/}"
 				;;
@@ -467,7 +475,7 @@ Set_defaults ()
 			;;
 
 		ubuntu)
-			case "${LIVE_IMAGE_ARCHITECTURE}" in
+			case "${LB_ARCHITECTURES}" in
 				amd64|i386)
 					LB_MIRROR_BINARY_SECURITY="${LB_MIRROR_BINARY_SECURITY:-http://security.ubuntu.com/ubuntu/}"
 					;;
@@ -516,7 +524,7 @@ Set_defaults ()
 	esac
 
 	# Setting linux flavour string
-	case "${LIVE_IMAGE_ARCHITECTURE}" in
+	case "${LB_ARCHITECTURES}" in
 		armel)
 			case "${LB_MODE}" in
                                 ubuntu)
@@ -525,15 +533,29 @@ Set_defaults ()
 				*)
 					# armel will have special images: one rootfs image and many additional kernel images.
 					# therefore we default to all available armel flavours
-					LB_LINUX_FLAVOURS="${LB_LINUX_FLAVOURS:-iop32x ixp4xx kirkwood orion5x versatile}"
+					case "${LB_DISTRIBUTION}" in
+						wheezy)
+							LB_LINUX_FLAVOURS="${LB_LINUX_FLAVOURS:-iop32x ixp4xx kirkwood orion5x versatile}"
+							;;
+						*)
+							LB_LINUX_FLAVOURS="${LB_LINUX_FLAVOURS:-ixp4xx kirkwood orion5x versatile}"
+							;;
+					esac
 					;;
 			esac
 			;;
 
 		armhf)
 			# armhf will have special images: one rootfs image and many additional kernel images.
-			# therefore we default to all available armel flavours
-			LB_LINUX_FLAVOURS="${LB_LINUX_FLAVOURS:-mx5 omap}"
+			# therefore we default to all available armhf flavours
+			case "${LB_DISTRIBUTION}" in
+				wheezy)
+					LB_LINUX_FLAVOURS="${LB_LINUX_FLAVOURS:-mx5 omap}"
+					;;
+				*)
+					LB_LINUX_FLAVOURS="${LB_LINUX_FLAVOURS:-armmp armmp-lpae}"
+					;;
+			esac
 			;;
 
 		amd64)
@@ -575,7 +597,7 @@ Set_defaults ()
 		ia64)
 			case "${LB_MODE}" in
 				progress-linux)
-					Echo_error "Architecture ${LIVE_IMAGE_ARCHITECTURE} not supported in the ${LB_MODE} mode."
+					Echo_error "Architecture ${LB_ARCHITECTURES} not supported in the ${LB_MODE} mode."
 					exit 1
 					;;
 
@@ -588,7 +610,7 @@ Set_defaults ()
 		powerpc)
 			case "${LB_MODE}" in
 				progress-linux)
-					Echo_error "Architecture ${LIVE_IMAGE_ARCHITECTURE} not supported in the ${LB_MODE} mode."
+					Echo_error "Architecture ${LB_ARCHITECTURES} not supported in the ${LB_MODE} mode."
 					exit 1
 					;;
 
@@ -605,7 +627,7 @@ Set_defaults ()
 		s390x)
 			case "${LB_MODE}" in
 				progress-linux|ubuntu)
-					Echo_error "Architecture ${LIVE_IMAGE_ARCHITECTURE} not supported in the ${LB_MODE} mode."
+					Echo_error "Architecture ${LB_ARCHITECTURES} not supported in the ${LB_MODE} mode."
 					exit 1
 					;;
 
@@ -618,7 +640,7 @@ Set_defaults ()
 		sparc)
 			case "${LB_MODE}" in
 				progress-linux)
-					Echo_error "Architecture ${LIVE_IMAGE_ARCHITECTURE} not supported in the ${LB_MODE} mode."
+					Echo_error "Architecture ${LB_ARCHITECTURES} not supported in the ${LB_MODE} mode."
 					exit 1
 					;;
 
@@ -629,7 +651,7 @@ Set_defaults ()
 			;;
 
 		*)
-			Echo_error "Architecture(s) ${LIVE_IMAGE_ARCHITECTURE} not yet supported (FIXME)"
+			Echo_error "Architecture(s) ${LB_ARCHITECTURES} not yet supported (FIXME)"
 			exit 1
 			;;
 	esac
@@ -670,7 +692,7 @@ Set_defaults ()
 	## config/binary
 
 	# Setting image filesystem
-	case "${LIVE_IMAGE_ARCHITECTURE}" in
+	case "${LB_ARCHITECTURES}" in
 		sparc)
 			LB_BINARY_FILESYSTEM="${LB_BINARY_FILESYSTEM:-ext4}"
 			;;
@@ -681,7 +703,7 @@ Set_defaults ()
 	esac
 
 	# Setting image type
-	case "${LIVE_IMAGE_ARCHITECTURE}" in
+	case "${LB_ARCHITECTURES}" in
 		amd64|i386)
 			LIVE_IMAGE_TYPE="${LIVE_IMAGE_TYPE:-iso-hybrid}"
 			;;
@@ -705,7 +727,7 @@ Set_defaults ()
 	# Setting bootloader
 	if [ -z "${LB_BOOTLOADER}" ]
 	then
-		case "${LIVE_IMAGE_ARCHITECTURE}" in
+		case "${LB_ARCHITECTURES}" in
 			amd64|i386)
 				LB_BOOTLOADER="syslinux"
 				;;
@@ -902,7 +924,7 @@ Set_defaults ()
 			;;
 
 		*)
-			case "${LIVE_IMAGE_ARCHITECTURE}" in
+			case "${LB_ARCHITECTURES}" in
 				amd64|i386)
 					if [ "${LB_DEBIAN_INSTALLER}" != "false" ]
 					then
@@ -926,7 +948,7 @@ Set_defaults ()
 			;;
 
 		*)
-			case "${LIVE_IMAGE_ARCHITECTURE}" in
+			case "${LB_ARCHITECTURES}" in
 				amd64|i386)
 					if [ "${LB_DEBIAN_INSTALLER}" != "false" ]
 					then

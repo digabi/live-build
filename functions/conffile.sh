@@ -16,7 +16,7 @@ Get_conffiles ()
 	else
 		for FILE in ${@}
 		do
-			FILES="${FILES} ${FILE} ${FILE}.${LIVE_IMAGE_ARCHITECTURE} ${FILE}.${DISTRIBUTION}"
+			FILES="${FILES} ${FILE} ${FILE}.${LB_ARCHITECTURES} ${FILE}.${DISTRIBUTION}"
 			FILES="${FILES} config/$(echo ${PROGRAM} | sed -e 's|^lb_||')"
 			FILES="${FILES} config/$(echo ${PROGRAM} | sed -e 's|^lb_||').${ARCHITECTURE}"
 			FILES="${FILES} config/$(echo ${PROGRAM} | sed -e 's|^lb_||').${DISTRIBUTION}"
@@ -28,7 +28,7 @@ Get_conffiles ()
 
 Read_conffiles ()
 {
-	for CONFFILE in Get_conffiles "${@}"
+	for CONFFILE in $(Get_conffiles "${@}")
 	do
 		if [ -f "${CONFFILE}" ]
 		then
@@ -45,7 +45,7 @@ Read_conffiles ()
 
 Print_conffiles ()
 {
-	for CONFFILE in Get_conffiles "${@}"
+	for CONFFILE in $(Get_conffiles "${@}")
 	do
 		if [ -f "${CONFFILE}" ]
 		then
